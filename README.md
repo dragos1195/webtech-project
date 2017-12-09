@@ -1,3 +1,4 @@
+<<<<<<< HEAD
      ,-----.,--.                  ,--. ,---.   ,--.,------.  ,------.
     '  .--./|  | ,---. ,--.,--. ,-|  || o   \  |  ||  .-.  \ |  .---'
     |  |    |  || .-. ||  ||  |' .-. |`..'  |  |  ||  |  \  :|  `--, 
@@ -24,3 +25,9 @@ The Cloud9 IDE team
 
 Visit http://docs.c9.io for documentation, or http://support.c9.io for support.
 To watch some training videos, visit http://www.youtube.com/user/c9ide
+=======
+# webtech-project
+Webtech seminar project
+
+Documentatia se afla in fisierul documentatie.docx
+>>>>>>> 6352677c3694e74a7d4ee3ef3201cb61d58f9ae1
