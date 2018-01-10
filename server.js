@@ -320,4 +320,86 @@ app.delete('/resourcegroups/:id', function(request,response){
 })
 
 
+//facebook login
+var passport = require('passport')
+  , FacebookStrategy = require('passport-facebook').Strategy;
+
+
+
+passport.use(new FacebookStrategy({
+    clientID: "1963482977312032",
+    clientSecret: "11ee3a175905bd166db11215654b179f",
+    callbackURL: "https://studyonline-dragosstrat.c9users.io/auth/facebook/callback",
+    //passReqToCallback : true,
+    profileFields: ['id', 'emails', 'profileUrl', 'name', 'gender']
+  },
+  function(accessToken, refreshToken, profile, done) {
+    
+    
+    var me = new Users({
+        firstname:profile.name.givenName,
+        lastname:profile.name.familyName,
+        facebook:profile.profileUrl,
+    });
+    
+    /* save if new */
+    
+
+    Users.findOne({where: {facebook: me.facebook}}).then(function(user){
+            
+            if(user == null){
+                console.log("2");;
+                me.save(function(err, me) {
+                if(err) return done(err);
+                done(null,me);
+            });
+            }else{
+                console.log("1");
+                done(null, user);
+            }
+        
+        });
+    }
+));
+
+
+passport.serializeUser(function(user, done) {
+  done(null, user);
+});
+
+passport.deserializeUser(function(user, done) {
+  done(null, user);
+});
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+app.use(express.static('../frontend/'));
+app.get('/auth/facebook', passport.authenticate('facebook'));
+app.get('/auth/facebook/callback', passport.authenticate('facebook', { successRedirect: '/index.html',
+                                      failureRedirect: '/login' }));
+app.get('/auth/facebook', passport.authenticate('facebook', { 
+      scope : ['public_profile', 'email']
+    }));
+
+
+function isLoggedIn(req, res, next) {
+
+    // if user is authenticated in the session, carry on
+    if (req.isAuthenticated())
+        return next();
+}
+
+app.get('/', isLoggedIn, function(req, res, next) {
+    if(req.user){
+        return next();
+        res.sendfile(__dirname + '/frontend/home.html');
+    }
+    
+});
+
+app.get('/login', isLoggedIn, function(req, res, next) {
+   //code
+});
+
 app.listen(8080);
