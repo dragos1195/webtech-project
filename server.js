@@ -79,10 +79,23 @@ app.use(express.json());
 
 app.use(express.urlencoded()); 
 
+app.use(function(req, res, next) {
+res.header('Access-Control-Allow-Credentials', true);
+res.header('Access-Control-Allow-Origin', 'https://studyonline-dragosstrat.c9users.io:8081');
+res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
+res.header('Access-Control-Allow-Headers', 'X-Requested-With, X-HTTP-Method-Override, Content-Type, Accept');
+if ('OPTIONS' == req.method) {
+     res.send(200);
+ } else {
+     next();
+ }
+});
 
 //added nodeadmin interface
 app.use('/nodeadmin', nodeadmin(app));
-
+app.get('/', function(request, response){
+    response.redirect('https://studyonline-dragosstrat.c9users.io:8081/');
+})
 //create a new user
 app.post('/users/:id', function(request,response){
     Users.create(request.body).then(function(user){
@@ -259,10 +272,78 @@ app.delete('/learnpaths/:id', function(request,response){
     })
 })
 
+app.get('/resources', function(request, response){
+    Resources.findAll().then(function(resources){
+        response.status(200).send(resources);
+    })
+})
+
+app.get('/resources/:id', function(request, response){
+    Resources.findById(request.params.id).then(function(resource){
+        if(resource){
+            response.status(200).send(resource);
+        }else{
+            response.status(404).send("not found");
+        }
+    })
+})
+
+app.post('/resources', function(request, response){
+    Resources.findById(request.params.id).then(function(resource){
+        if(resource){
+            response.status(200).send("already exists");
+        }
+        else{
+            Resources.create(request.body).then(function(resource){
+                response.status(201).send(resource);
+            })
+        }
+    })
+})
+
+app.put('/resources/:id', function(request, response){
+    Resources.findById(request.params.id).then(function(resource){
+        if(resource){
+            resource.update(request.body).then(function(resource){
+                response.status(201).send(resource);
+            }).catch(function(error){
+                response.status(200).send("error");
+            })
+        }else{
+            response.status(404).send("not found");
+        }
+    })
+})
+
+app.delete('/resources/:id', function(request, response){
+    Resources.findById(request.params.id).then(function(resource){
+        if(resource){
+            resource.destroy().then(function(){
+                response.status(200).send();
+            })
+        }else{
+            response.status(404).send("not found");
+        }
+    })
+})
+
 //read all resourcegroups
 app.get('/resourcegroups', function(request,response){
     Resourcegroups.findAll().then(function(resourcegroups){
         response.status(200).send(resourcegroups);
+    })
+})
+
+app.post('/resourcegroups', function(request, response){
+    Resourcegroups.findById(request.params.id).then(function(group){
+        if(group){
+            response.status(200).send("already exists");
+        }
+        else{
+            Resourcegroups.create(request.body).then(function(group){
+                response.status(201).send(group);
+            })
+        }
     })
 })
 
@@ -278,7 +359,7 @@ app.get('/resourcegroups/:id', function(request,response){
     })
 })
 //create resourcegroup
-app.post('/resourcegroups/:id', function(request,response){
+app.post('/resourcegroups/', function(request,response){
     Resourcegroups.findById(request.params.id).then(function(resourcegroup){
         if(resourcegroup){
             response.status(200).send("already exists");
@@ -320,9 +401,29 @@ app.delete('/resourcegroups/:id', function(request,response){
 })
 
 
+
+
+
+
+
 //facebook login
-var passport = require('passport')
-  , FacebookStrategy = require('passport-facebook').Strategy;
+var passport = require('passport'), FacebookStrategy = require('passport-facebook').Strategy;
+
+var session = require("express-session"),
+bodyParser = require("body-parser");
+const cors = require("cors");
+//app.use(cors());
+
+
+app.use(express.static("public"));
+app.use(session({ secret: "cats" }));
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(passport.initialize());
+app.use(passport.session());
+
+app.use(function(err, req, res, next) {
+    console.log(err);
+});
 
 
 
@@ -335,71 +436,84 @@ passport.use(new FacebookStrategy({
   },
   function(accessToken, refreshToken, profile, done) {
     
-    
     var me = new Users({
         firstname:profile.name.givenName,
         lastname:profile.name.familyName,
         facebook:profile.profileUrl,
+        email:profile.emails[0].value
     });
     
     /* save if new */
     
 
-    Users.findOne({where: {facebook: me.facebook}}).then(function(user){
+    Users.findOne({where: {email: me.email}}).then(function(user){
             
             if(user == null){
-                console.log("2");;
                 me.save(function(err, me) {
                 if(err) return done(err);
                 done(null,me);
-            });
+            })
             }else{
-                console.log("1");
+                
                 done(null, user);
             }
         
         });
     }
+    
 ));
 
 
 passport.serializeUser(function(user, done) {
-  done(null, user);
+    console.log(user.id);
+    done(null, user.id);
 });
 
-passport.deserializeUser(function(user, done) {
-  done(null, user);
+// used to deserialize the user
+passport.deserializeUser(function(id, done) {
+    Users.findById(id).then(function(user) {
+    //console.log('deserializing user:',user);
+    done(null, user);
+  }).catch(function(err) {
+    if (err) {
+      throw err;
+    }
+ });
 });
 
-app.use(passport.initialize());
-app.use(passport.session());
 
-app.use(express.static('../frontend/'));
-app.get('/auth/facebook', passport.authenticate('facebook'));
-app.get('/auth/facebook/callback', passport.authenticate('facebook', { successRedirect: '/index.html',
-                                      failureRedirect: '/login' }));
+
+app.get('/auth/facebook/callback',
+  passport.authenticate('facebook', { failureRedirect: '/login' }),
+  function(req,res){
+     res.redirect('https://studyonline-dragosstrat.c9users.io:8081/');
+  });
 app.get('/auth/facebook', passport.authenticate('facebook', { 
-      scope : ['public_profile', 'email']
+      scope : ['public_profile', 'email', 'publish_pages']
     }));
 
 
-function isLoggedIn(req, res, next) {
+app.get('/me', isLoggedIn, function(req, res) {
+       res.send({id:req.user.id, lastname:req.user.lastname});
+});
 
-    // if user is authenticated in the session, carry on
-    if (req.isAuthenticated())
-        return next();
+function isLoggedIn(req, res, next) {
+	if(req.isAuthenticated()){
+		return next();
+	}
+	res.status(403).send('bad');
 }
 
-app.get('/', isLoggedIn, function(req, res, next) {
-    if(req.user){
-        return next();
-        res.sendfile(__dirname + '/frontend/home.html');
-    }
-    
-});
+app.get('/logout', isLoggedIn, function(req, res){
+    req.logout();
+    res.status(200).send("out");
+})
+
+
+
 
 app.get('/login', isLoggedIn, function(req, res, next) {
-   //code
+   res.status(403).send('bad');
 });
-
+app.use(express.static('./client/public/'));
 app.listen(8080);
